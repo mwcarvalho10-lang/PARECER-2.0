@@ -152,7 +152,6 @@ export function Dashboard({ appData, onSelectClass }: DashboardProps) {
       appData: localStorage.getItem('edu_data_v13'),
       pins: localStorage.getItem('edu_pins_v13'),
       teachers: localStorage.getItem('edu_teachers_v13'),
-      docConfig: localStorage.getItem('edu_doc_config_v13'),
       version: '13',
       exportDate: new Date().toISOString()
     };
@@ -177,7 +176,6 @@ export function Dashboard({ appData, onSelectClass }: DashboardProps) {
           if (json.appData) localStorage.setItem('edu_data_v13', json.appData);
           if (json.pins) localStorage.setItem('edu_pins_v13', json.pins);
           if (json.teachers) localStorage.setItem('edu_teachers_v13', json.teachers);
-          if (json.docConfig) localStorage.setItem('edu_doc_config_v13', json.docConfig);
           alert("Backup restaurado com sucesso! A página será recarregada.");
           window.location.reload();
         } else {

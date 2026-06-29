@@ -5,7 +5,6 @@ import { Dashboard } from '@/components/Dashboard';
 import { MainApp } from '@/components/MainApp';
 import { AppData, Skill } from '@/lib/types';
 import { defaultSkills } from '@/lib/defaultSkills';
-import { CloudSync } from '@/components/CloudSync';
 
 export default function Page() {
   const [globalSkills, setGlobalSkills] = useState<Skill[]>([]);
@@ -15,15 +14,6 @@ export default function Page() {
   const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'app'>('dashboard');
   const [currentGrade, setCurrentGrade] = useState<string>("");
   const [currentLetter, setCurrentLetter] = useState<string>("");
-  const [pins, setPins] = useState({});
-  const [teachers, setTeachers] = useState([]);
-  const [docConfig, setDocConfig] = useState<any>({
-    schoolName: "E. M. RAYMUNDO LEMOS SANTANA",
-    teacherName: "",
-    principalName: "",
-    year: "2026",
-    logoBase64: ""
-  });
 
   useEffect(() => {
     let skills: Skill[] = JSON.parse(localStorage.getItem('edu_skills_v13') || '[]');
@@ -38,19 +28,10 @@ export default function Page() {
     }
     localStorage.setItem('edu_skills_v13', JSON.stringify(skills));
     const data = JSON.parse(localStorage.getItem('edu_data_v13') || '{}');
-    const localPins = JSON.parse(localStorage.getItem('edu_pins_v13') || '{}');
-    const localTeachers = JSON.parse(localStorage.getItem('edu_teachers_v13') || '[]');
-    const localDocConfig = JSON.parse(localStorage.getItem('edu_doc_config_v13') || 'null');
-    
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setGlobalSkills(skills);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAppData(data);
-    setPins(localPins);
-    setTeachers(localTeachers);
-    if (localDocConfig) {
-      setDocConfig(localDocConfig);
-    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoaded(true);
   }, []);
@@ -63,37 +44,6 @@ export default function Page() {
   const handleUpdateGlobalSkills = (newSkills: Skill[]) => {
     setGlobalSkills(newSkills);
     localStorage.setItem('edu_skills_v13', JSON.stringify(newSkills));
-  };
-
-  const handleUpdateDocConfig = (newConfig: any) => {
-    setDocConfig(newConfig);
-    localStorage.setItem('edu_doc_config_v13', JSON.stringify(newConfig));
-  };
-
-  const handleDataRestored = (data: any) => {
-    if (data.appData) {
-      setAppData(data.appData);
-      localStorage.setItem('edu_data_v13', JSON.stringify(data.appData));
-    }
-    if (data.skills) {
-      setGlobalSkills(data.skills);
-      localStorage.setItem('edu_skills_v13', JSON.stringify(data.skills));
-    }
-    if (data.pins) {
-      setPins(data.pins);
-      localStorage.setItem('edu_pins_v13', JSON.stringify(data.pins));
-    }
-    if (data.teachers) {
-      setTeachers(data.teachers);
-      localStorage.setItem('edu_teachers_v13', JSON.stringify(data.teachers));
-    }
-    if (data.docConfig) {
-      setDocConfig(data.docConfig);
-      localStorage.setItem('edu_doc_config_v13', JSON.stringify(data.docConfig));
-    }
-    
-    // Force reload to let child components re-read from local storage if they need to
-    window.location.reload();
   };
 
   const handleSelectClass = (grade: string, letter: string) => {
@@ -115,13 +65,7 @@ export default function Page() {
   if (!isLoaded) return <div className="h-screen flex items-center justify-center bg-[#f8fafc]">Carregando...</div>;
 
   return (
-    <div className="h-screen overflow-hidden relative">
-      <div className="absolute top-4 left-4 z-50">
-        <CloudSync 
-          onDataRestored={handleDataRestored} 
-          currentData={{ appData, skills: globalSkills, pins, teachers }} 
-        />
-      </div>
+    <div className="h-screen overflow-hidden">
       {currentScreen === 'dashboard' ? (
         <Dashboard 
           appData={appData} 
@@ -133,11 +77,9 @@ export default function Page() {
           currentLetter={currentLetter}
           appData={appData}
           globalSkills={globalSkills}
-          docConfig={docConfig}
           onGoBack={() => setCurrentScreen('dashboard')}
           onUpdateAppData={handleUpdateAppData}
           onUpdateGlobalSkills={handleUpdateGlobalSkills}
-          onUpdateDocConfig={handleUpdateDocConfig}
         />
       )}
     </div>

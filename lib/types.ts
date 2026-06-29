@@ -26,14 +26,6 @@ export interface Teacher {
   classes: string[];
 }
 
-export interface DocumentConfig {
-  schoolName: string;
-  teacherName: string;
-  principalName: string;
-  year: string;
-  logoBase64: string;
-}
-
 export interface AppData {
   [classKey: string]: ClassData;
 }

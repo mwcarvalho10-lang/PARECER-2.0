@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Download, Edit3, Trash2, CheckCircle2, Menu, Clock, Bell, Book, Settings } from 'lucide-react';
+import { Home, Download, Edit3, Trash2, CheckCircle2, Menu, Clock, Bell, Book } from 'lucide-react';
 import { AppData, Skill, ClassData } from '@/lib/types';
 import { units, subjects } from '@/lib/constants';
 import { StudentModal } from './StudentModal';
 import { SkillsModal } from './SkillsModal';
-import { DocumentConfigModal } from './DocumentConfigModal';
-import { Document, Packer, Paragraph, HeadingLevel, AlignmentType, ImageRun } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
@@ -14,29 +13,12 @@ interface MainAppProps {
   currentLetter: string;
   appData: AppData;
   globalSkills: Skill[];
-  docConfig: any;
   onGoBack: () => void;
   onUpdateAppData: (newData: AppData) => void;
   onUpdateGlobalSkills: (newSkills: Skill[]) => void;
-  onUpdateDocConfig: (newConfig: any) => void;
 }
 
-const base64ToUint8Array = (base64String: string) => {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-  
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-};
-
-export function MainApp({ currentGrade, currentLetter, appData, globalSkills, docConfig, onGoBack, onUpdateAppData, onUpdateGlobalSkills, onUpdateDocConfig }: MainAppProps) {
+export function MainApp({ currentGrade, currentLetter, appData, globalSkills, onGoBack, onUpdateAppData, onUpdateGlobalSkills }: MainAppProps) {
   const classKey = `${currentGrade}${currentLetter}`;
   const classData: ClassData = appData[classKey] || { students: [] };
 
@@ -55,7 +37,6 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, do
   
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
-  const [isDocConfigOpen, setIsDocConfigOpen] = useState(false);
 
   const [isReportOpen, setIsReportOpen] = useState(true);
   const [isReadMode, setIsReadMode] = useState(false);
@@ -411,58 +392,10 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, do
     return { sortedSkills, totalStudents };
   };
 
-  const createHeader = () => {
-    const children: any[] = [];
-    
-    if (docConfig?.logoBase64) {
-      try {
-        const base64Data = docConfig.logoBase64.split(',')[1];
-        children.push(
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new ImageRun({
-                data: base64ToUint8Array(base64Data),
-                transformation: {
-                  width: 100,
-                  height: 100,
-                },
-              }),
-            ],
-          })
-        );
-      } catch (e) {
-        console.error("Error generating image", e);
-      }
-    }
-
-    children.push(
-      new Paragraph({ text: docConfig?.schoolName || "NOME DA ESCOLA", heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER })
-    );
-
-    children.push(
-      new Paragraph({ 
-        text: `PROFESSOR(A): ${docConfig?.teacherName || "NÃO INFORMADO"} | DIREÇÃO: ${docConfig?.principalName || "NÃO INFORMADO"}`, 
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 100 }
-      })
-    );
-
-    children.push(
-      new Paragraph({ 
-        text: `ANO LETIVO: ${docConfig?.year || new Date().getFullYear().toString()}`, 
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 300 }
-      })
-    );
-
-    return children;
-  };
-
   const exportIndividualDocx = async (type: 'unit' | 'history') => {
     if (!selectedStudent) return;
     const children = [
-      ...createHeader(),
+      new Paragraph({ text: "E. M. RAYMUNDO LEMOS SANTANA", heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER }), 
       new Paragraph({ text: `PARECER PEDAGÓGICO - ${selectedStudent}`, heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER, spacing: { after: 300 } })
     ];
     const unitsToExport = type === 'unit' ? [selectedUnit] : units;
@@ -491,8 +424,7 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, do
     const activeStudents = classData.students.filter(s => classData[s]?.active !== false);
     if (activeStudents.length === 0) return;
     const children = [
-      ...createHeader(),
-      new Paragraph({ text: `RELATÓRIO DE UNIDADE - ${currentGrade}º ${currentLetter} - ${selectedUnit}`, heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER, spacing: { after: 400 } })
+      new Paragraph({ text: `RELATÓRIO DE UNIDADE - ${currentGrade}º ${currentLetter} - ${selectedUnit}`, heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER, spacing: { after: 400 } })
     ];
     
     activeStudents.forEach(s => {
@@ -506,7 +438,7 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, do
           return a.id.localeCompare(b.id);
         });
       const text = data.observation || (selected.length > 0 ? formatReportText(s, selectedUnit, selected) : "NÃO PREENCHIDO");
-      children.push(new Paragraph({ text: `ESTUDANTE: ${s}`, heading: HeadingLevel.HEADING_3 }));
+      children.push(new Paragraph({ text: `ESTUDANTE: ${s}`, heading: HeadingLevel.HEADING_2 }));
       children.push(new Paragraph({ text: text.toUpperCase(), alignment: AlignmentType.JUSTIFIED, spacing: { after: 300 } }));
     });
     
@@ -542,13 +474,6 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, do
           ))}
         </div>
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setIsDocConfigOpen(true)}
-            className="w-10 h-10 hover:bg-slate-100 rounded-full flex items-center justify-center text-slate-400 relative transition-all"
-            title="Configurações do Relatório"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
           <div className="relative">
             <button 
               onClick={() => setIsProgressOpen(!isProgressOpen)} 
@@ -925,13 +850,6 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, do
           newSkills.splice(idx, 1);
           onUpdateGlobalSkills(newSkills);
         }}
-      />
-
-      <DocumentConfigModal 
-        isOpen={isDocConfigOpen}
-        onClose={() => setIsDocConfigOpen(false)}
-        config={docConfig}
-        onSave={(newConfig) => onUpdateDocConfig(newConfig)}
       />
     </div>
   );
