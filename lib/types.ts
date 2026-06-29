@@ -1,0 +1,39 @@
+export interface Skill {
+  id: string;
+  grade: string;
+  subject: string;
+  report: string;
+  color: string;
+}
+
+export interface UnitData {
+  skills: string[];
+  observation: string;
+}
+
+export interface StudentData {
+  [unit: string]: UnitData;
+}
+
+export interface ClassData {
+  students: string[];
+  [studentName: string]: any; // StudentData | string[]
+}
+
+export interface Teacher {
+  id: string;
+  name: string;
+  classes: string[];
+}
+
+export interface DocumentConfig {
+  schoolName: string;
+  teacherName: string;
+  principalName: string;
+  year: string;
+  logoBase64: string;
+}
+
+export interface AppData {
+  [classKey: string]: ClassData;
+}

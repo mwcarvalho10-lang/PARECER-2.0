@@ -1,0 +1,35 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "appData": {
+          "type": "string",
+          "description": "JSON stringified app data"
+        },
+        "skills": {
+          "type": "string",
+          "description": "JSON stringified skills"
+        },
+        "pins": {
+          "type": "string",
+          "description": "JSON stringified pins"
+        },
+        "teachers": {
+          "type": "string",
+          "description": "JSON stringified teachers"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "User documents containing their data backups"
+    }
+  }
+}
