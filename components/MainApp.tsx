@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Download, Edit3, Trash2, CheckCircle2, Menu, Clock, Bell, Book } from 'lucide-react';
+import { Home, Download, Edit3, Trash2, CheckCircle2, Menu, Clock, Bell, Book, CheckSquare, Square, Layers } from 'lucide-react';
 import { AppData, Skill, ClassData } from '@/lib/types';
 import { units, subjects } from '@/lib/constants';
 import { StudentModal } from './StudentModal';
@@ -34,9 +34,9 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
   const [skillsModalOpen, setSkillsModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProgressOpen, setIsProgressOpen] = useState(false);
-  
+
   const [isBulkMode, setIsBulkMode] = useState(false);
-  const [bulkSelected, setBulkSelected] = useState<string[]>([]);
+  const [selectedStudentsBulk, setSelectedStudentsBulk] = useState<string[]>([]);
 
   const [isReportOpen, setIsReportOpen] = useState(true);
   const [isReadMode, setIsReadMode] = useState(false);
@@ -126,29 +126,30 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
 
   const toggleSkill = (skillId: string) => {
     if (isBulkMode) {
-      if (bulkSelected.length === 0) return;
-      const allHaveIt = bulkSelected.every(s => classData[s]?.[selectedUnit]?.skills?.includes(skillId));
+      if (selectedStudentsBulk.length === 0) {
+        alert("SELECIONE PELO MENOS UM ESTUDANTE NO MODO LOTE.");
+        return;
+      }
+      const firstStudent = selectedStudentsBulk[0];
+      const hasSkill = classData[firstStudent][selectedUnit].skills.includes(skillId);
       
       const newClassData = { ...classData };
-      bulkSelected.forEach(s => {
-        let skills = [...(newClassData[s]?.[selectedUnit]?.skills || [])];
-        if (allHaveIt) {
-          skills = skills.filter(id => id !== skillId);
-        } else {
-          if (!skills.includes(skillId)) skills.push(skillId);
-        }
-        newClassData[s] = {
-          ...newClassData[s],
-          [selectedUnit]: {
-            ...newClassData[s]?.[selectedUnit],
-            skills
-          }
-        };
+      
+      selectedStudentsBulk.forEach(student => {
+        const studentUnitData = classData[student][selectedUnit];
+        let newSkills = [...studentUnitData.skills];
         
-        // Also update the observation text for this student based on new skills
+        if (hasSkill) {
+          newSkills = newSkills.filter(id => id !== skillId);
+        } else {
+          if (!newSkills.includes(skillId)) {
+            newSkills.push(skillId);
+          }
+        }
+        
         const subjectOrder = ['portugues', 'matematica', 'ciencias', 'historia'];
         const newSelectedSkills = globalSkills
-          .filter(sk => skills.includes(sk.id) && sk.grade === currentGrade)
+          .filter(sk => newSkills.includes(sk.id) && sk.grade === currentGrade)
           .sort((a, b) => {
             const orderA = subjectOrder.indexOf(a.subject);
             const orderB = subjectOrder.indexOf(b.subject);
@@ -158,8 +159,8 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
           
         let newText = "";
         if (newSelectedSkills.length > 0) {
-          const skillTexts = newSelectedSkills.map(sk => {
-            let text = sk.report.trim();
+          const skillTexts = newSelectedSkills.map(s => {
+            let text = s.report.trim();
             if (text.endsWith('.')) text = text.slice(0, -1);
             return text;
           });
@@ -167,70 +168,80 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
           if (skillTexts.length === 1) {
             joinedSkills = skillTexts[0];
           } else {
-            const last = skillTexts.pop();
-            joinedSkills = skillTexts.join(', ') + ' E ' + last;
+            const lastSkill = skillTexts.pop();
+            joinedSkills = skillTexts.join(", ") + " E " + lastSkill;
           }
-          newText = `O(A) ESTUDANTE ${s}, NA ETAPA ${selectedUnit}, DEMONSTROU QUE ${joinedSkills}.`.toUpperCase();
+          newText = `O(A) ESTUDANTE ${student}, NA ETAPA ${selectedUnit}, DEMONSTROU QUE ${joinedSkills}.`.toUpperCase();
         }
         
-        newClassData[s][selectedUnit].observation = newText;
-      });
-      
-      setClassData(newClassData);
-      return;
-    }
-
-    if (!selectedStudent) return;
-    const studentUnitData = classData[selectedStudent][selectedUnit];
-    let newSkills = [...studentUnitData.skills];
-    
-    if (newSkills.includes(skillId)) {
-      newSkills = newSkills.filter(id => id !== skillId);
-    } else {
-      newSkills.push(skillId);
-    }
-    
-    const subjectOrder = ['portugues', 'matematica', 'ciencias', 'historia'];
-    const newSelectedSkills = globalSkills
-      .filter(sk => newSkills.includes(sk.id) && sk.grade === currentGrade)
-      .sort((a, b) => {
-        const orderA = subjectOrder.indexOf(a.subject);
-        const orderB = subjectOrder.indexOf(b.subject);
-        if (orderA !== orderB) return orderA - orderB;
-        return a.id.localeCompare(b.id);
-      });
-      
-    let newText = "";
-    if (newSelectedSkills.length > 0) {
-      const skillTexts = newSelectedSkills.map(s => {
-        let text = s.report.trim();
-        if (text.endsWith('.')) text = text.slice(0, -1);
-        return text;
-      });
-      let joinedSkills = "";
-      if (skillTexts.length === 1) {
-        joinedSkills = skillTexts[0];
-      } else {
-        const lastSkill = skillTexts.pop();
-        joinedSkills = skillTexts.join(", ") + " E " + lastSkill;
-      }
-      newText = `O(A) ESTUDANTE ${selectedStudent}, NA ETAPA ${selectedUnit}, DEMONSTROU QUE ${joinedSkills}.`.toUpperCase();
-    }
-    
-    onUpdateAppData({
-      ...appData,
-      [classKey]: {
-        ...classData,
-        [selectedStudent]: {
-          ...classData[selectedStudent],
+        newClassData[student] = {
+          ...newClassData[student],
           [selectedUnit]: {
             ...studentUnitData,
             skills: newSkills,
             observation: newText
           }
-        }
+        };
+      });
+      
+      onUpdateAppData({
+        ...appData,
+        [classKey]: newClassData
+      });
+
+    } else {
+      if (!selectedStudent) return;
+      const studentUnitData = classData[selectedStudent][selectedUnit];
+      let newSkills = [...studentUnitData.skills];
+      
+      if (newSkills.includes(skillId)) {
+        newSkills = newSkills.filter(id => id !== skillId);
+      } else {
+        newSkills.push(skillId);
       }
-    });
+      
+      const subjectOrder = ['portugues', 'matematica', 'ciencias', 'historia'];
+      const newSelectedSkills = globalSkills
+        .filter(sk => newSkills.includes(sk.id) && sk.grade === currentGrade)
+        .sort((a, b) => {
+          const orderA = subjectOrder.indexOf(a.subject);
+          const orderB = subjectOrder.indexOf(b.subject);
+          if (orderA !== orderB) return orderA - orderB;
+          return a.id.localeCompare(b.id);
+        });
+        
+      let newText = "";
+      if (newSelectedSkills.length > 0) {
+        const skillTexts = newSelectedSkills.map(s => {
+          let text = s.report.trim();
+          if (text.endsWith('.')) text = text.slice(0, -1);
+          return text;
+        });
+        let joinedSkills = "";
+        if (skillTexts.length === 1) {
+          joinedSkills = skillTexts[0];
+        } else {
+          const lastSkill = skillTexts.pop();
+          joinedSkills = skillTexts.join(", ") + " E " + lastSkill;
+        }
+        newText = `O(A) ESTUDANTE ${selectedStudent}, NA ETAPA ${selectedUnit}, DEMONSTROU QUE ${joinedSkills}.`.toUpperCase();
+      }
+      
+      onUpdateAppData({
+        ...appData,
+        [classKey]: {
+          ...classData,
+          [selectedStudent]: {
+            ...classData[selectedStudent],
+            [selectedUnit]: {
+              ...studentUnitData,
+              skills: newSkills,
+              observation: newText
+            }
+          }
+        }
+      });
+    }
   };
 
   const handleManualEdit = () => {
@@ -342,7 +353,13 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
   };
 
   let reportText = "SELECIONE UM ESTUDANTE...";
-  if (selectedStudent && currentStudentData) {
+  if (isBulkMode) {
+    if (selectedStudentsBulk.length > 0) {
+      reportText = `MODO LOTE ATIVADO - ${selectedStudentsBulk.length} ESTUDANTE(S) SELECIONADO(S).\n\nAS HABILIDADES CLICADAS SERÃO ATRIBUÍDAS A TODOS OS ESTUDANTES DESTA SELEÇÃO.`;
+    } else {
+      reportText = "MODO LOTE ATIVADO - SELECIONE OS ESTUDANTES NA BARRA LATERAL PARA ATRIBUIÇÃO EM MASSA.";
+    }
+  } else if (selectedStudent && currentStudentData) {
     if (currentStudentData.observation) {
       reportText = currentStudentData.observation;
     } else {
@@ -367,30 +384,6 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
       reportRef.current.innerText = reportText;
     }
   }, [reportText, selectedStudent, selectedUnit]);
-
-  const getSkillStats = () => {
-    const activeStudents = classData.students.filter(s => classData[s]?.active !== false);
-    const skillCounts: Record<string, number> = {};
-    const currentGradeSkills = globalSkills.filter(sk => sk.grade === currentGrade);
-    
-    currentGradeSkills.forEach(sk => { skillCounts[sk.id] = 0; });
-    
-    activeStudents.forEach(s => {
-      const skills = classData[s]?.[selectedUnit]?.skills || [];
-      skills.forEach(skillId => {
-        if (skillCounts[skillId] !== undefined) {
-          skillCounts[skillId]++;
-        }
-      });
-    });
-
-    const sortedSkills = Object.keys(skillCounts)
-      .map(id => ({ id, count: skillCounts[id] }))
-      .sort((a, b) => b.count - a.count);
-
-    const totalStudents = activeStudents.length;
-    return { sortedSkills, totalStudents };
-  };
 
   const exportIndividualDocx = async (type: 'unit' | 'history') => {
     if (!selectedStudent) return;
@@ -504,86 +497,39 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
                     { name: 'Pendente', value: stats.pending }
                   ];
                   return (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 relative shrink-0">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={data}
-                                innerRadius="75%"
-                                outerRadius="100%"
-                                paddingAngle={0}
-                                dataKey="value"
-                                startAngle={90}
-                                endAngle={-270}
-                                stroke="none"
-                              >
-                                <Cell key="cell-0" fill="#7fb432" />
-                                <Cell key="cell-1" fill="#e2e8f0" />
-                              </Pie>
-                            </PieChart>
-                          </ResponsiveContainer>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[10px] font-black text-slate-700">{stats.percent}%</span>
-                          </div>
-                        </div>
-                        <div className="flex flex-col flex-1">
-                          <div className="flex justify-between items-center text-[10px] mb-1">
-                            <span className="text-slate-500 font-bold uppercase">Concluídos</span>
-                            <span className="font-black text-escola-verde">{stats.done}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-[10px]">
-                            <span className="text-slate-500 font-bold uppercase">Pendentes</span>
-                            <span className="font-black text-slate-400">{stats.pending}</span>
-                          </div>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 relative shrink-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={data}
+                              innerRadius="75%"
+                              outerRadius="100%"
+                              paddingAngle={0}
+                              dataKey="value"
+                              startAngle={90}
+                              endAngle={-270}
+                              stroke="none"
+                            >
+                              <Cell key="cell-0" fill="#7fb432" />
+                              <Cell key="cell-1" fill="#e2e8f0" />
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-[10px] font-black text-slate-700">{stats.percent}%</span>
                         </div>
                       </div>
-                      
-                      {(() => {
-                        const { sortedSkills, totalStudents } = getSkillStats();
-                        if (sortedSkills.length === 0 || totalStudents === 0) return null;
-                        
-                        const topSkills = sortedSkills.slice(0, 3).filter(s => s.count > 0);
-                        const bottomSkills = [...sortedSkills].reverse().slice(0, 3).filter(s => s.count < totalStudents);
-                        
-                        if (topSkills.length === 0 && bottomSkills.length === 0) return null;
-
-                        return (
-                          <div className="pt-3 border-t border-slate-100">
-                            {topSkills.length > 0 && (
-                              <div className="mb-3">
-                                <h4 className="text-[9px] font-black text-escola-verde uppercase mb-1.5 flex items-center gap-1">
-                                  Mais Alcançadas
-                                </h4>
-                                <div className="space-y-1">
-                                  {topSkills.map(sk => (
-                                    <div key={sk.id} className="flex justify-between items-center text-[9px]">
-                                      <span className="text-slate-500 font-bold uppercase truncate max-w-[150px]">{sk.id}</span>
-                                      <span className="font-black text-slate-700">{Math.round((sk.count / totalStudents) * 100)}%</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {bottomSkills.length > 0 && (
-                              <div>
-                                <h4 className="text-[9px] font-black text-amber-500 uppercase mb-1.5 flex items-center gap-1">
-                                  Menos Alcançadas
-                                </h4>
-                                <div className="space-y-1">
-                                  {bottomSkills.map(sk => (
-                                    <div key={sk.id} className="flex justify-between items-center text-[9px]">
-                                      <span className="text-slate-500 font-bold uppercase truncate max-w-[150px]">{sk.id}</span>
-                                      <span className="font-black text-slate-700">{Math.round((sk.count / totalStudents) * 100)}%</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
+                      <div className="flex flex-col flex-1">
+                        <div className="flex justify-between items-center text-[10px] mb-1">
+                          <span className="text-slate-500 font-bold uppercase">Concluídos</span>
+                          <span className="font-black text-escola-verde">{stats.done}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-slate-500 font-bold uppercase">Pendentes</span>
+                          <span className="font-black text-slate-400">{stats.pending}</span>
+                        </div>
+                      </div>
                     </div>
                   );
                 })()}
@@ -600,7 +546,15 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
         <aside className={`bg-white rounded-3xl border border-slate-200 flex flex-col shrink-0 transition-all duration-300 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ${isSidebarOpen ? 'w-72' : 'w-0 overflow-hidden border-none opacity-0'}`}>
           <div className="w-72 flex flex-col h-full">
             <div className="p-6 pb-2">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Estudantes</h2>
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudantes</h2>
+                <button 
+                  onClick={() => setIsBulkMode(!isBulkMode)}
+                  className={`px-2 py-1 rounded text-[9px] font-bold uppercase transition-colors flex items-center gap-1 ${isBulkMode ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                >
+                  {isBulkMode ? <CheckSquare className="w-3 h-3" /> : <Layers className="w-3 h-3" />} Lote
+                </button>
+              </div>
               <input 
                 type="text" 
                 value={searchStudent}
@@ -608,7 +562,7 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
                 placeholder="BUSCAR..." 
                 className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold uppercase outline-none mb-3"
               />
-              <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-3">
+              <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
                 <button 
                   onClick={() => setStatusFilter('active')}
                   className={`flex-1 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${statusFilter === 'active' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
@@ -628,51 +582,39 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
                   Todos
                 </button>
               </div>
-              <button 
-                onClick={() => {
-                  setIsBulkMode(!isBulkMode);
-                  if (!isBulkMode) setBulkSelected([]);
-                }}
-                className={`w-full py-2 px-3 text-[10px] font-black uppercase rounded-xl border flex items-center justify-center gap-2 transition-all ${isBulkMode ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:bg-slate-50'}`}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {isBulkMode ? 'Sair do Modo Lote' : 'Atribuição em Lote'}
-              </button>
             </div>
             <div className="flex-1 overflow-y-auto px-4 space-y-1 pb-6 mt-2">
               {filteredStudents.map(s => {
                 const isDone = classData[s]?.[selectedUnit]?.skills?.length > 0 || classData[s]?.[selectedUnit]?.observation?.trim()?.length > 0;
                 const isActive = classData[s]?.active !== false;
-                
-                let isStudentSelected = false;
-                if (isBulkMode) {
-                  isStudentSelected = bulkSelected.includes(s);
-                } else {
-                  isStudentSelected = selectedStudent === s;
-                }
+                const isSelectedInBulk = selectedStudentsBulk.includes(s);
 
                 return (
                 <div key={s} className="group relative flex items-center">
                   <button 
                     onClick={() => {
                       if (isBulkMode) {
-                        setBulkSelected(prev => 
-                          prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]
+                        setSelectedStudentsBulk(prev => 
+                          prev.includes(s) ? prev.filter(st => st !== s) : [...prev, s]
                         );
                       } else {
                         setSelectedStudent(s);
                       }
                     }} 
-                    className={`flex-1 flex items-center gap-2 text-left px-4 py-3 rounded-xl text-[11px] font-bold transition-all ${isStudentSelected ? 'bg-escola-azul text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                    className={`flex-1 flex items-center gap-2 text-left px-4 py-3 rounded-xl text-[11px] font-bold transition-all ${
+                      isBulkMode 
+                        ? (isSelectedInBulk ? 'bg-amber-50 text-amber-700 shadow-sm border border-amber-200' : 'text-slate-500 hover:bg-slate-50 border border-transparent')
+                        : (selectedStudent === s ? 'bg-escola-azul text-white shadow-md' : 'text-slate-500 hover:bg-slate-50 border border-transparent')
+                    }`}
                   >
                     {isBulkMode ? (
-                      <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${isStudentSelected ? 'border-white bg-white/20' : 'border-slate-300'}`}>
-                        {isStudentSelected && <Check className="w-2.5 h-2.5 text-white" />}
-                      </div>
-                    ) : isDone ? (
-                      <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isStudentSelected ? 'text-white' : 'text-escola-verde'}`} />
+                      isSelectedInBulk ? <CheckSquare className="w-4 h-4 shrink-0 text-amber-500" /> : <Square className="w-4 h-4 shrink-0 text-slate-300" />
                     ) : (
-                      <Clock className={`w-3.5 h-3.5 shrink-0 ${isStudentSelected ? 'text-white/70' : 'text-amber-400'}`} />
+                      isDone ? (
+                        <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${selectedStudent === s ? 'text-white' : 'text-escola-verde'}`} />
+                      ) : (
+                        <Clock className={`w-3.5 h-3.5 shrink-0 ${selectedStudent === s ? 'text-white/70' : 'text-amber-400'}`} />
+                      )
                     )}
                     <span className={`truncate uppercase block pr-14 ${!isActive ? 'line-through opacity-60' : ''}`}>{s}</span>
                   </button>
@@ -733,20 +675,22 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {currentSkills.map(s => {
                   let isSet = false;
-                  let usedInOtherUnit = "";
                   
                   if (isBulkMode) {
-                    if (bulkSelected.length > 0) {
-                      isSet = bulkSelected.every(st => classData[st]?.[selectedUnit]?.skills?.includes(s.id));
+                    if (selectedStudentsBulk.length > 0) {
+                      // Check if the first selected student has this skill
+                      isSet = classData[selectedStudentsBulk[0]]?.[selectedUnit]?.skills.includes(s.id);
                     }
                   } else {
-                    isSet = currentStudentData?.skills?.includes(s.id) || false;
-                    if (!isSet && selectedStudent) {
-                      for (const u of units) {
-                        if (u !== selectedUnit && classData[selectedStudent]?.[u]?.skills?.includes(s.id)) {
-                          usedInOtherUnit = u;
-                          break;
-                        }
+                    isSet = currentStudentData?.skills.includes(s.id) || false;
+                  }
+
+                  let usedInOtherUnit = "";
+                  if (!isBulkMode && !isSet && selectedStudent) {
+                    for (const u of units) {
+                      if (u !== selectedUnit && classData[selectedStudent]?.[u]?.skills?.includes(s.id)) {
+                        usedInOtherUnit = u;
+                        break;
                       }
                     }
                   }
@@ -791,32 +735,22 @@ export function MainApp({ currentGrade, currentLetter, appData, globalSkills, on
           <div className="bg-slate-900 p-4 flex justify-between items-center text-white rounded-t-3xl cursor-pointer" onClick={() => setIsReportOpen(false)}>
             <div className="flex items-center gap-2">
               <Edit3 className="w-4 h-4 text-escola-verde" />
-              <span className="text-xs font-black uppercase tracking-wider">
-                {isBulkMode ? `${bulkSelected.length} SELECIONADOS` : (selectedStudent || "--")}
-              </span>
+              <span className="text-xs font-black uppercase tracking-wider">{selectedStudent || "--"}</span>
             </div>
-            {!isBulkMode && (
-              <div className="flex gap-2">
-                <button onClick={(e) => { e.stopPropagation(); setIsReadMode(!isReadMode); }} className={`text-[9px] px-2 py-1.5 rounded-lg font-bold uppercase flex items-center gap-1 transition-colors ${isReadMode ? 'bg-amber-100 text-amber-900' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}><Book className="w-3 h-3" /> {isReadMode ? 'Normal' : 'Leitura'}</button>
-                <button onClick={(e) => { e.stopPropagation(); exportIndividualDocx('unit'); }} className="text-[9px] bg-escola-azul px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold uppercase flex items-center gap-1 transition-colors"><Download className="w-3 h-3" /> Unidade</button>
-                <button onClick={(e) => { e.stopPropagation(); exportIndividualDocx('history'); }} className="text-[9px] bg-escola-azul px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold uppercase flex items-center gap-1 transition-colors"><Download className="w-3 h-3" /> Histórico</button>
-              </div>
-            )}
+            <div className="flex gap-2">
+              <button onClick={(e) => { e.stopPropagation(); setIsReadMode(!isReadMode); }} className={`text-[9px] px-2 py-1.5 rounded-lg font-bold uppercase flex items-center gap-1 transition-colors ${isReadMode ? 'bg-amber-100 text-amber-900' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}><Book className="w-3 h-3" /> {isReadMode ? 'Normal' : 'Leitura'}</button>
+              <button onClick={(e) => { e.stopPropagation(); exportIndividualDocx('unit'); }} className="text-[9px] bg-escola-azul px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold uppercase flex items-center gap-1 transition-colors"><Download className="w-3 h-3" /> Unidade</button>
+              <button onClick={(e) => { e.stopPropagation(); exportIndividualDocx('history'); }} className="text-[9px] bg-escola-azul px-2 py-1.5 rounded-lg hover:bg-blue-600 font-bold uppercase flex items-center gap-1 transition-colors"><Download className="w-3 h-3" /> Histórico</button>
+            </div>
           </div>
           <div className={`p-5 h-[320px] overflow-y-auto rounded-b-3xl transition-colors ${isReadMode ? 'bg-[#fdf6e3]' : 'bg-slate-50'}`}>
-            {isBulkMode ? (
-              <div className="flex items-center justify-center h-full text-slate-400 text-xs font-bold text-center p-4">
-                No modo de atribuição em lote, o texto do parecer não pode ser editado manualmente aqui. Use este modo apenas para adicionar habilidades rapidamente aos estudantes selecionados.
-              </div>
-            ) : (
-              <div 
-                ref={reportRef}
-                contentEditable={!!selectedStudent} 
-                onInput={handleManualEdit}
-                onBlur={handleManualEdit}
-                className={`font-['Plus_Jakarta_Sans'] leading-[1.8] text-[12px] outline-none p-5 rounded-2xl uppercase text-justify min-h-full transition-all shadow-sm border ${isReadMode ? 'bg-[#fffbf0] border-amber-200 text-slate-900 focus:border-amber-400 font-medium' : 'bg-white border-slate-200 focus:border-amber-400 text-slate-800'}`}
-              />
-            )}
+            <div 
+              ref={reportRef}
+              contentEditable={!isBulkMode && !!selectedStudent} 
+              onInput={handleManualEdit}
+              onBlur={handleManualEdit}
+              className={`font-['Plus_Jakarta_Sans'] leading-[1.8] text-[12px] outline-none p-5 rounded-2xl uppercase text-justify min-h-full transition-all shadow-sm border ${isReadMode ? 'bg-[#fffbf0] border-amber-200 text-slate-900 focus:border-amber-400 font-medium' : 'bg-white border-slate-200 focus:border-amber-400 text-slate-800'}`}
+            />
           </div>
         </div>
 

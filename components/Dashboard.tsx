@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { GraduationCap, BookOpen, ChevronDown, ChevronUp, Settings, Lock, Edit2, Check, UserPlus, Trash2, Users, Download, Upload } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { GraduationCap, BookOpen, ChevronDown, ChevronUp, Settings, Lock, Edit2, Check, UserPlus, Trash2, Users } from 'lucide-react';
 import { gradesArr, lettersArr, PIN_CONFIG } from '@/lib/constants';
 import { PinModal } from './PinModal';
 import { AppData, Teacher } from '@/lib/types';
@@ -24,8 +24,6 @@ export function Dashboard({ appData, onSelectClass }: DashboardProps) {
   const [newTeacherName, setNewTeacherName] = useState("");
   const [newTeacherClasses, setNewTeacherClasses] = useState<string[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedPins = localStorage.getItem('edu_pins_v13');
@@ -145,50 +143,6 @@ export function Dashboard({ appData, onSelectClass }: DashboardProps) {
     setNewTeacherClasses(prev => 
       prev.includes(classKey) ? prev.filter(k => k !== classKey) : [...prev, classKey]
     );
-  };
-
-  const handleExportBackup = () => {
-    const backupData = {
-      appData: localStorage.getItem('edu_data_v13'),
-      pins: localStorage.getItem('edu_pins_v13'),
-      teachers: localStorage.getItem('edu_teachers_v13'),
-      version: '13',
-      exportDate: new Date().toISOString()
-    };
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup_painel_pedagogico_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        if (json.version && json.appData !== undefined) {
-          if (json.appData) localStorage.setItem('edu_data_v13', json.appData);
-          if (json.pins) localStorage.setItem('edu_pins_v13', json.pins);
-          if (json.teachers) localStorage.setItem('edu_teachers_v13', json.teachers);
-          alert("Backup restaurado com sucesso! A página será recarregada.");
-          window.location.reload();
-        } else {
-          alert("Arquivo de backup inválido.");
-        }
-      } catch (err) {
-        alert("Erro ao ler o arquivo de backup.");
-      }
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   return (
@@ -330,37 +284,6 @@ export function Dashboard({ appData, onSelectClass }: DashboardProps) {
                 </div>
               ))}
               </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-3xl shadow-xl border border-amber-200">
-              <h2 className="text-xl font-black text-slate-800 uppercase mb-6 flex items-center gap-2">
-                <Download className="text-amber-500" /> Backup e Restauração
-              </h2>
-              <div className="flex gap-4">
-                <button 
-                  onClick={handleExportBackup}
-                  className="bg-amber-50 text-amber-700 px-6 py-3 rounded-xl font-bold uppercase text-xs border border-amber-200 hover:bg-amber-100 hover:border-amber-300 flex-1 flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" /> Exportar Dados (Backup)
-                </button>
-                
-                <input 
-                  type="file" 
-                  accept=".json" 
-                  ref={fileInputRef} 
-                  onChange={handleImportBackup} 
-                  className="hidden" 
-                />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-slate-50 text-slate-700 px-6 py-3 rounded-xl font-bold uppercase text-xs border border-slate-200 hover:bg-slate-100 hover:border-slate-300 flex-1 flex items-center justify-center gap-2"
-                >
-                  <Upload className="w-4 h-4" /> Importar Dados (Restaurar)
-                </button>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-4 text-center">
-                O arquivo de backup contém todas as turmas, alunos, habilidades marcadas e senhas.
-              </p>
             </div>
           </div>
         ) : (
